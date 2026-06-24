@@ -123,6 +123,12 @@ createdb eka_db
 # 6. Start backend
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+If port `8000` is already in use, start on `8001` instead:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
 # 7. In another terminal, start frontend
 streamlit run ui/streamlit_app.py
 ```

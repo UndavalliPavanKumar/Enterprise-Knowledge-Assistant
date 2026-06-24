@@ -36,6 +36,12 @@ SQLALCHEMY_ECHO=False
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
+If port `8000` is already in use, start the app on `8001` instead:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8001
+```
+
 5. Open the API at:
 
 - `http://127.0.0.1:8000`
