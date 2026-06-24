@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eka-backend
+  namespace: eka
+  labels:
+    app: eka-backend
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: eka-backend
+  sessionAffinity: None
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eka-frontend
+  namespace: eka
+  labels:
+    app: eka-frontend
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 8501
+    targetPort: 8501
+    protocol: TCP
+  selector:
+    app: eka-frontend
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eka-ingress
+  namespace: eka
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - eka.example.com
+    secretName: eka-tls
+  rules:
+  - host: eka.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: eka-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: eka-frontend
+            port:
+              number: 8501

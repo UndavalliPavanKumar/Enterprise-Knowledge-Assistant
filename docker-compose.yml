@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database with pgvector
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: eka_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-eka_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eka_network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: eka_backend
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-eka_db}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      DEBUG: ${DEBUG:-False}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    networks:
+      - eka_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Streamlit UI
+  frontend:
+    image: python:3.11-slim
+    container_name: eka_frontend
+    working_dir: /app
+    environment:
+      STREAMLIT_SERVER_PORT: 8501
+      STREAMLIT_SERVER_HEADLESS: "true"
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./ui:/app/ui
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - backend
+    networks:
+      - eka_network
+    command: >
+      bash -c "pip install -r requirements.txt && 
+               streamlit run ui/streamlit_app.py"
+
+networks:
+  eka_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

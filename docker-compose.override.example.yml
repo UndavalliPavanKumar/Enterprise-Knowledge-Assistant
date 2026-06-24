@@ -1,0 +1,68 @@
+version: '3.8'
+
+# Example docker-compose.override.yml for development
+# Copy this to docker-compose.override.yml and modify as needed
+# This file is automatically merged with docker-compose.yml by Docker Compose
+
+services:
+  backend:
+    # Enable debugging
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    
+    # Mount local code for hot-reload
+    volumes:
+      - ./app:/app/app
+      - ./tests:/app/tests
+    
+    # Forward debugger port
+    ports:
+      - "5678:5678"  # Python debugger
+    
+    # Environment overrides for development
+    environment:
+      DEBUG: "True"
+      LOG_LEVEL: "DEBUG"
+      SQLALCHEMY_ECHO: "True"
+
+  postgres:
+    # Use host port instead of internal
+    ports:
+      - "5432:5432"
+    
+    # Faster startup for development
+    environment:
+      # These settings make postgres start faster but are NOT for production
+      shared_buffers: 256MB
+      fsync: "off"
+
+  frontend:
+    # Mount local code
+    volumes:
+      - ./ui:/app/ui
+
+  # Add adminer for database inspection
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - eka_network
+
+  # Add mailhog for email testing (optional)
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - eka_network
+
+  # Add redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - eka_network

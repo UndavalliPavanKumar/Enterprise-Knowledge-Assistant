@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eka-backend
+  namespace: eka
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: eka-backend
+  template:
+    metadata:
+      labels:
+        app: eka-backend
+    spec:
+      containers:
+      - name: backend
+        image: eka:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: DATABASE_URL
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: eka-secrets
+              key: OPENAI_API_KEY
+        - name: OPENAI_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: OPENAI_MODEL
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: EMBEDDING_MODEL
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: DEBUG
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: LOG_LEVEL
+        - name: API_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: API_HOST
+        - name: API_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: eka-config
+              key: API_PORT
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 2
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eka-frontend
+  namespace: eka
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eka-frontend
+  template:
+    metadata:
+      labels:
+        app: eka-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: eka-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8501
+          protocol: TCP
+        env:
+        - name: STREAMLIT_SERVER_PORT
+          value: "8501"
+        - name: STREAMLIT_SERVER_HEADLESS
+          value: "true"
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        
+        # Liveness probe
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
